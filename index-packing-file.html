@@ -154,9 +154,6 @@
     .excel-table { font-size: 11px; white-space: nowrap; min-width: max-content; }
     .excel-table th { text-transform: none; letter-spacing: 0; max-width: 160px; white-space: normal; vertical-align: top; }
     .excel-table td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-    .pack-table { font-size: 12px; width: 100%; border-collapse: collapse; border: 1px solid var(--border); }
-    .pack-table th, .pack-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-    .pack-table th { background: #f1f5f9; font-weight: 600; color: var(--muted); }
     .excel-table td.img-cell { max-width: 96px; white-space: normal; text-align: center; vertical-align: middle; padding: 4px; }
     .excel-table .prod-img { max-width: 80px; max-height: 80px; object-fit: contain; display: block; margin: 0 auto; }
 
@@ -189,10 +186,6 @@
         <div class="file-name" id="packFileName"></div>
       </div>
       <input type="file" id="packFileInput" accept=".xlsx,.xls,.csv" hidden />
-      <div id="packPreview" style="display:none;margin-top:10px;">
-        <div class="sec-title" style="margin-top:0;">已导入装箱</div>
-        <div class="table-scroll" id="packPreviewWrap"></div>
-      </div>
     </section>
 
     <section class="panel no-print">
@@ -628,32 +621,6 @@
     return { unit: weightUnit, boxes: list };
   }
 
-  function renderPackPreview() {
-    const wrap = document.getElementById('packPreviewWrap');
-    const preview = document.getElementById('packPreview');
-    if (!importedProducts.length) {
-      preview.style.display = 'none';
-      return;
-    }
-    let html = '<table class="pack-table"><thead><tr><th>产品型号</th><th>箱号</th><th>数量</th></tr></thead><tbody>';
-    importedProducts.forEach(p => {
-      p.packings.forEach(pk => {
-        html += `<tr><td>${esc(p.name)}</td><td>${pk.box}</td><td>${pk.qty}</td></tr>`;
-      });
-    });
-    wrap.innerHTML = html + '</tbody></table>';
-    if (importedBoxMeta.maxBox > 0) {
-      const unit = importedBoxMeta.weightUnit;
-      let boxHtml = '<div class="sec-title">各箱信息</div><table class="pack-table"><thead><tr><th>箱号</th><th>重量</th><th>长</th><th>宽</th><th>高</th></tr></thead><tbody>';
-      for (let no = 1; no <= importedBoxMeta.maxBox; no++) {
-        const b = importedBoxMeta.boxes[no] || {};
-        boxHtml += `<tr><td>${no}箱</td><td>${b.weight ?? '-'} ${unit}</td><td>${b.length ?? BOX_DIM_DEFAULT.length} cm</td><td>${b.width ?? BOX_DIM_DEFAULT.width} cm</td><td>${b.height ?? BOX_DIM_DEFAULT.height} cm</td></tr>`;
-      }
-      wrap.innerHTML += boxHtml + '</tbody></table>';
-    }
-    preview.style.display = 'block';
-  }
-
   function applyPackingImport(products, maxBox, boxMeta) {
     importedProducts = products;
     importedBoxMeta = {
@@ -661,7 +628,6 @@
       boxes: boxMeta?.boxes || {},
       maxBox: maxBox || 0,
     };
-    renderPackPreview();
     hideError();
   }
 
@@ -682,7 +648,6 @@
       } catch (err) {
         importedProducts = [];
         importedBoxMeta = { weightUnit: 'kg', boxes: {}, maxBox: 0 };
-        renderPackPreview();
         showError(err.message || '装箱表解析失败');
       }
     };
