@@ -3,217 +3,245 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>发货清单生成器 · 装箱表在线版</title>
+  <title>装箱数据表与字典匹配</title>
   <style>
     :root {
-      --bg: #f0f4f8;
+      --bg: #eef2f7;
       --card: #fff;
-      --border: #e2e8f0;
-      --text: #1e293b;
-      --muted: #64748b;
-      --primary: #3b82f6;
-      --primary-dark: #2563eb;
-      --danger: #ef4444;
-      --radius: 8px;
-      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+      --border: #d8dee9;
+      --text: #1a2b4a;
+      --muted: #6b7a90;
+      --primary: #4a90d9;
+      --primary-dark: #3a7bc8;
+      --danger: #dc2626;
+      --radius: 10px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text);
       background: var(--bg);
       line-height: 1.5;
       min-height: 100vh;
-      padding: 20px 16px 32px;
+      padding: 32px 16px 48px;
     }
-    .wrap { max-width: 1400px; margin: 0 auto; }
+    .wrap { max-width: 920px; margin: 0 auto; }
 
-    .page-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--primary); }
-    .page-header h1 { font-size: 18px; font-weight: 700; }
-    .page-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .data-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
-    .data-status { font-size: 12px; padding: 4px 10px; border-radius: 4px; display: inline-block; }
-    .data-status.ok { background: #ecfdf5; color: #047857; }
-    .data-status.warn { background: #fffbeb; color: #b45309; }
-    .data-status.err { background: #fef2f2; color: #b91c1c; }
+    .hero { margin-bottom: 20px; }
+    .hero h1 { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: 0.02em; }
+    .hero p { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
-    .drop-zone {
-      margin-top: 10px;
-      padding: 16px;
-      border: 2px dashed #cbd5e1;
-      border-radius: var(--radius);
-      background: #f8fafc;
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      cursor: pointer;
-      transition: border-color .15s, background .15s;
-    }
-    .drop-zone:hover, .drop-zone.dragover {
-      border-color: var(--primary);
-      background: #eff6ff;
-      color: #1e40af;
-    }
-    .drop-zone b { color: var(--primary); }
-
-    .panel {
+    .main-card {
       background: var(--card);
-      border: 1px solid var(--border);
+      border: 1px solid #e8ecf2;
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px 16px;
-      margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(26, 43, 74, 0.06);
+      padding: 22px 24px 20px;
+      margin-bottom: 16px;
     }
-    .panel-title {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 10px;
+
+    .file-row {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 14px;
+      margin-bottom: 14px;
     }
-    .panel-title::before {
-      content: '';
-      width: 3px;
-      height: 14px;
-      background: var(--primary);
-      border-radius: 2px;
-    }
-    .hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
-
-    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    label { color: var(--muted); font-size: 12px; white-space: nowrap; }
-    .inline-field { display: flex; flex-direction: column; gap: 4px; }
-
-    input, select, button, textarea { font: inherit; border-radius: 6px; transition: border-color .15s, box-shadow .15s, background .15s; }
-    input, select, textarea {
-      padding: 6px 8px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-    }
-    input[type="number"] { width: 80px; }
-    input[type="text"].wide { flex: 1; min-width: 0; width: auto; }
-    input[type="text"].ref-input { width: 220px; }
-    textarea.sku-bulk { width: 100%; min-height: 72px; resize: vertical; line-height: 1.5; }
-
-    button {
-      cursor: pointer;
-      padding: 6px 14px;
-      border: 1px solid var(--border);
-      background: #fff;
+    .file-label {
+      flex: 0 0 72px;
+      font-size: 14px;
       color: var(--text);
       font-weight: 500;
     }
-    button:hover { background: #f8fafc; }
-    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-    button.primary:hover { background: var(--primary-dark); }
-    button.ghost { background: #f1f5f9; border-color: transparent; color: var(--muted); }
-    button.ghost:hover { background: #e2e8f0; color: var(--text); }
-    button.danger { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
-    button.danger:hover { background: #fee2e2; }
-    button.sm { padding: 3px 8px; font-size: 12px; }
-
-    #productList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    @media (max-width: 1000px) { #productList { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 640px) { #productList { grid-template-columns: 1fr; } }
-    .product-card {
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--primary);
+    .file-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 6px 12px;
+      border: 1px dashed #c5cedb;
       border-radius: 6px;
-      padding: 10px 12px;
       background: #fafbfc;
-      min-width: 0;
+      transition: border-color .15s, background .15s;
     }
-    .product-top { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
-    .packing-rows { display: flex; flex-direction: column; gap: 5px; padding: 6px 0 2px 12px; border-left: 2px dashed #e2e8f0; margin-left: 4px; }
-    .packing-row { display: flex; gap: 8px; align-items: center; }
-    .pack-input { width: 88px; font-family: inherit; }
+    .file-box.dragover { border-color: var(--primary); background: #f0f7ff; }
+    .pick-btn {
+      flex-shrink: 0;
+      padding: 4px 12px;
+      font-size: 13px;
+      border: 1px solid #c5cedb;
+      border-radius: 4px;
+      background: #f3f5f8;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .pick-btn:hover { background: #e9edf3; }
+    .file-text {
+      flex: 1;
+      font-size: 13px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-text.selected { color: var(--text); }
 
-    .error { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; display: none; }
+    .id-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 18px 0 16px;
+    }
+    @media (max-width: 560px) { .id-row { grid-template-columns: 1fr; } }
+    .id-field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .id-field input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+    .id-field input::placeholder { color: #a0aec0; }
+    .id-field input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+    }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 4px; }
+    button.primary {
+      cursor: pointer;
+      padding: 8px 22px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+    }
+    button.primary:hover { background: var(--primary-dark); }
+    button.primary.outline {
+      background: #fff;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+    button.primary.outline:hover { background: #f0f7ff; }
+
+    .status-line { margin-top: 12px; font-size: 13px; color: var(--muted); }
+    .error {
+      margin-top: 10px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: var(--danger);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
     .error.show { display: block; }
-    .warn-box { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px; display: none; }
+    .warn-box {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      display: none;
+    }
     .warn-box.show { display: block; }
 
     #output { display: none; }
     #output.show { display: block; }
+    .output-card {
+      background: var(--card);
+      border: 1px solid #e8ecf2;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px rgba(26, 43, 74, 0.06);
+      padding: 20px 24px;
+    }
     .output-header { text-align: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-    .output-header h1 { font-size: 20px; margin-bottom: 8px; }
+    .output-header h2 { font-size: 18px; margin-bottom: 8px; }
     .stat-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
     .chip { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
     .chip b { font-size: 14px; }
     .sec-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; padding-left: 8px; border-left: 3px solid #94a3b8; }
 
     .table-scroll { overflow-x: auto; margin-bottom: 8px; }
-    .excel-table { font-size: 11px; white-space: nowrap; min-width: max-content; }
-    .excel-table th { text-transform: none; letter-spacing: 0; max-width: 160px; white-space: normal; vertical-align: top; }
+    .excel-table { font-size: 11px; white-space: nowrap; min-width: max-content; width: 100%; border-collapse: collapse; }
+    .excel-table th, .excel-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    .excel-table th { background: #f1f5f9; font-weight: 600; color: var(--muted); max-width: 160px; white-space: normal; vertical-align: top; }
     .excel-table td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
     .excel-table td.img-cell { max-width: 96px; white-space: normal; text-align: center; vertical-align: middle; padding: 4px; }
     .excel-table .prod-img { max-width: 80px; max-height: 80px; object-fit: contain; display: block; margin: 0 auto; }
 
-    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; margin-bottom: 4px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-    th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: #f1f5f9; font-weight: 600; color: var(--muted); font-size: 11px; }
-    tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: #f8fafc; }
-    .total-row td { font-weight: 600; background: #f1f5f9 !important; }
+    table.result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 4px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    table.result-table th, table.result-table td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    table.result-table th { background: #f1f5f9; font-weight: 600; color: var(--muted); font-size: 11px; }
+    table.result-table tr:last-child td { border-bottom: none; }
+    table.result-table tbody tr:hover td { background: #f8fafc; }
+    table.result-table .total-row td { font-weight: 600; background: #f1f5f9 !important; }
+
+    @media print { .no-print { display: none !important; } }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header class="page-header no-print">
-      <h1>发货清单生成器 <span style="font-size:12px;font-weight:500;color:var(--primary);">装箱表在线版</span></h1>
-      <p>浏览器内上传 Pack List 装箱表并生成清单，数据不上传服务器；请先加载 data.xlsx 产品数据表</p>
-      <div class="data-toolbar">
-        <div id="dataStatus" class="data-status warn">数据表：加载中…</div>
-        <button class="ghost sm" id="btnLoadExcel">选择 / 更换 data.xlsx</button>
-      </div>
-      <div class="drop-zone" id="dropZone">将 <b>data.xlsx</b> 拖拽到此处，或点击选择文件</div>
-      <input type="file" id="excelFile" accept=".xlsx,.xls" hidden />
+    <header class="hero no-print">
+      <h1>装箱数据表与字典匹配</h1>
+      <p>上传装箱文件与字典 Excel，自动解析并匹配，直接展示字典格式结果，支持导出。</p>
     </header>
 
-    <section class="panel no-print">
-      <div class="panel-title">装箱表导入</div>
-      <p class="hint" style="margin-bottom:8px;">支持亚马逊 <b>Pack List</b> 装箱表（.xlsx）：读取「装箱清单」至「合计」之间的 SKU 与各箱数量，并自动识别每箱重量、长宽高</p>
-      <div class="drop-zone" id="packDropZone" style="margin-top:0;">
-        点击或拖拽 <b>装箱表</b> 到此处
-        <div class="file-name" id="packFileName"></div>
-      </div>
-      <input type="file" id="packFileInput" accept=".xlsx,.xls,.csv" hidden />
-    </section>
-
-    <section class="panel no-print">
-      <div class="panel-title">单号信息</div>
-      <div class="row">
-        <div class="inline-field">
-          <label for="poNumber">PO Number*（Reference ID）</label>
-          <input type="text" id="poNumber" class="ref-input" placeholder="本批共用" />
+    <section class="main-card no-print">
+      <div class="file-row">
+        <span class="file-label">装箱文件</span>
+        <div class="file-box" id="packDropZone">
+          <button type="button" class="pick-btn" id="btnPickPack">选择文件</button>
+          <span class="file-text" id="packFileName">未选择任何文件</span>
+          <input type="file" id="packFileInput" accept=".xlsx,.xls,.csv" hidden />
         </div>
-        <div class="inline-field">
+      </div>
+
+      <div class="file-row">
+        <span class="file-label">字典文件</span>
+        <div class="file-box" id="dropZone">
+          <button type="button" class="pick-btn" id="btnLoadExcel">选择文件</button>
+          <span class="file-text" id="dictFileName">未选择任何文件</span>
+          <input type="file" id="excelFile" accept=".xlsx,.xls" hidden />
+        </div>
+      </div>
+
+      <div class="id-row">
+        <div class="id-field">
           <label for="fbaId">物品FBA ID</label>
-          <input type="text" id="fbaId" class="ref-input" placeholder="本批共用" />
+          <input type="text" id="fbaId" placeholder="写入【物品FBA ID】列" />
+        </div>
+        <div class="id-field">
+          <label for="poNumber">PO Number</label>
+          <input type="text" id="poNumber" placeholder="写入【PO Number*(Reference ID)】列" />
         </div>
       </div>
-      <p class="hint">生成清单时写入每一行</p>
-    </section>
 
-    <section class="panel no-print">
-      <div class="error" id="errorMsg"></div>
-      <div class="row">
-        <button class="primary" id="btnGenerate">生成清单</button>
-        <button class="primary" id="btnDownload" style="display:none;">下载清单</button>
+      <div class="actions">
+        <button type="button" class="primary" id="btnGenerate">匹配字典</button>
+        <button type="button" class="primary outline" id="btnDownload" style="display:none;">导出 Excel</button>
       </div>
+      <div class="status-line" id="statusMsg">请先上传装箱文件</div>
+      <div class="error" id="errorMsg"></div>
     </section>
 
-    <section class="panel" id="output">
+    <section class="output-card" id="output">
       <div class="output-header">
-        <h1>发货清单</h1>
+        <h2>匹配结果</h2>
         <div id="summaryMeta" class="stat-chips"></div>
       </div>
       <div class="warn-box" id="unmatchedWarn"></div>
@@ -251,10 +279,30 @@
   const findColBoxNum = headers => headers.findIndex(h => /^箱数/.test(String(h).trim()));
   const isImageUrl = str => /^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(str) || /^data:image\//i.test(str);
 
+  function setDictFileName(name, selected) {
+    const el = document.getElementById('dictFileName');
+    el.textContent = name || '未选择任何文件';
+    el.classList.toggle('selected', !!selected);
+  }
+
+  function setPackFileName(name, selected) {
+    const el = document.getElementById('packFileName');
+    el.textContent = name || '未选择任何文件';
+    el.classList.toggle('selected', !!selected);
+  }
+
+  function updateStatusLine() {
+    const el = document.getElementById('statusMsg');
+    if (!packFileName) el.textContent = '请先上传装箱文件';
+    else if (!excelDb) el.textContent = '请先上传字典文件';
+    else el.textContent = `已就绪，可点击「匹配字典」`;
+  }
+
   function setDataStatus(text, type) {
-    const el = document.getElementById('dataStatus');
-    el.textContent = text;
-    el.className = 'data-status ' + (type || 'warn');
+    if (type === 'err') setDictFileName('加载失败', false);
+    else if (excelFileName) setDictFileName(excelFileName, true);
+    else setDictFileName(text.includes('加载中') ? '加载中…' : '未选择任何文件', false);
+    updateStatusLine();
   }
 
   function resetOutputAfterExcelChange() {
@@ -270,7 +318,8 @@
     const hadData = !!excelDb;
     await parseXlsxBuffer(buffer);
     excelFileName = fileName || 'data.xlsx';
-    setDataStatus(`数据表：${excelFileName}（${excelDb.rows.length} 条产品）`, 'ok');
+    setDictFileName(excelFileName, true);
+    updateStatusLine();
     hideError();
     if (hadData) resetOutputAfterExcelChange();
   }
@@ -395,15 +444,18 @@
 
   async function initExcel() {
     if (!IS_ONLINE) {
-      setDataStatus('本地文件模式：请选择或拖入 data.xlsx', 'warn');
+      setDictFileName('未选择任何文件', false);
+      updateStatusLine();
       return;
     }
+    setDictFileName('加载中…', false);
     try {
       const res = await fetch('data.xlsx', { cache: 'no-store' });
       if (!res.ok) throw new Error();
-      await loadExcelFromBuffer(await res.arrayBuffer(), 'data.xlsx（服务器默认）');
+      await loadExcelFromBuffer(await res.arrayBuffer(), 'data.xlsx');
     } catch {
-      setDataStatus('未找到服务器默认数据表，请上传 data.xlsx', 'warn');
+      setDictFileName('未选择任何文件', false);
+      updateStatusLine();
     }
   }
 
@@ -411,12 +463,10 @@
   const dropZone = document.getElementById('dropZone');
 
   document.getElementById('btnLoadExcel').onclick = () => excelFileInput.click();
-  dropZone.onclick = () => excelFileInput.click();
   excelFileInput.onchange = e => {
     handleExcelFile(e.target.files[0]);
     e.target.value = '';
   };
-
   dropZone.addEventListener('dragover', e => {
     e.preventDefault();
     dropZone.classList.add('dragover');
@@ -426,7 +476,7 @@
     e.preventDefault();
     dropZone.classList.remove('dragover');
     const file = [...(e.dataTransfer?.files || [])].find(f => /\.xlsx?$/i.test(f.name));
-    if (!file) return showError('请拖入 .xlsx 或 .xls 文件');
+    if (!file) return showError('请拖入 .xlsx 或 .xls 字典文件');
     hideError();
     handleExcelFile(file);
   });
@@ -629,13 +679,14 @@
       maxBox: maxBox || 0,
     };
     hideError();
+    updateStatusLine();
   }
 
   function handlePackFile(file) {
     if (!file) return;
     if (!/\.(xlsx|xls|csv)$/i.test(file.name)) return showError('请上传 .xlsx、.xls 或 .csv 装箱表');
     packFileName = file.name;
-    document.getElementById('packFileName').textContent = `已选择：${file.name}`;
+    setPackFileName(file.name, true);
     const isCsv = /\.csv$/i.test(file.name);
     const reader = new FileReader();
     reader.onload = e => {
@@ -645,9 +696,13 @@
           : e.target.result;
         const { products, maxBox, boxMeta } = parsePackingFile(buffer, file.name);
         applyPackingImport(products, maxBox, boxMeta);
+        updateStatusLine();
       } catch (err) {
         importedProducts = [];
         importedBoxMeta = { weightUnit: 'kg', boxes: {}, maxBox: 0 };
+        packFileName = '';
+        setPackFileName('', false);
+        updateStatusLine();
         showError(err.message || '装箱表解析失败');
       }
     };
@@ -657,7 +712,7 @@
 
   const packDropZone = document.getElementById('packDropZone');
   const packFileInput = document.getElementById('packFileInput');
-  packDropZone.onclick = () => packFileInput.click();
+  document.getElementById('btnPickPack').onclick = () => packFileInput.click();
   packFileInput.onchange = e => { handlePackFile(e.target.files[0]); e.target.value = ''; };
   packDropZone.addEventListener('dragover', e => { e.preventDefault(); packDropZone.classList.add('dragover'); });
   packDropZone.addEventListener('dragleave', () => packDropZone.classList.remove('dragover'));
@@ -680,8 +735,8 @@
   }
 
   function validate(data) {
-    if (!excelDb) return '请先加载 data.xlsx 数据表';
-    if (!importedProducts.length) return '请先上传装箱表';
+    if (!excelDb) return '请先上传字典文件';
+    if (!importedProducts.length) return '请先上传装箱文件';
     if (!data.boxes.length) return '装箱表中未识别到箱号';
     for (const p of importedProducts) {
       if (!p.packings.length) return `「${p.name}」无装箱记录`;
@@ -805,7 +860,7 @@
     const byBox = {};
     boxes.forEach(b => { byBox[b.no] = { weight: b.weight, items: [] }; });
     products.forEach(p => p.packings.forEach(pk => byBox[pk.box].items.push({ qty: pk.qty })));
-    let wtHtml = '<table><thead><tr><th>箱号</th><th>毛重</th><th>件数</th></tr></thead><tbody>';
+    let wtHtml = '<table class="result-table"><thead><tr><th>箱号</th><th>毛重</th><th>件数</th></tr></thead><tbody>';
     boxes.forEach(b => {
       const qty = byBox[b.no].items.reduce((s, it) => s + it.qty, 0);
       wtHtml += `<tr><td>${b.no}箱</td><td>${b.weight.toFixed(2)} ${unit}</td><td>${qty}</td></tr>`;
@@ -878,6 +933,7 @@
 
   // ── 初始化 ──
   initExcel();
+  updateStatusLine();
 })();
   </script>
 </body>
