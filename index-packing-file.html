@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>发货清单生成器 · 装箱表在线版</title>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #fff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --danger: #ef4444;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 20px 16px 32px;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; }
+
+    .page-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--primary); }
+    .page-header h1 { font-size: 18px; font-weight: 700; }
+    .page-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .data-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+    .data-status { font-size: 12px; padding: 4px 10px; border-radius: 4px; display: inline-block; }
+    .data-status.ok { background: #ecfdf5; color: #047857; }
+    .data-status.warn { background: #fffbeb; color: #b45309; }
+    .data-status.err { background: #fef2f2; color: #b91c1c; }
+
+    .drop-zone {
+      margin-top: 10px;
+      padding: 16px;
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius);
+      background: #f8fafc;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: #eff6ff;
+      color: #1e40af;
+    }
+    .drop-zone b { color: var(--primary); }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .inline-field { display: flex; flex-direction: column; gap: 4px; }
+
+    input, select, button, textarea { font: inherit; border-radius: 6px; transition: border-color .15s, box-shadow .15s, background .15s; }
+    input, select, textarea {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    input[type="number"] { width: 80px; }
+    input[type="text"].wide { flex: 1; min-width: 0; width: auto; }
+    input[type="text"].ref-input { width: 220px; }
+    textarea.sku-bulk { width: 100%; min-height: 72px; resize: vertical; line-height: 1.5; }
+
+    button {
+      cursor: pointer;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-weight: 500;
+    }
+    button:hover { background: #f8fafc; }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.primary:hover { background: var(--primary-dark); }
+    button.ghost { background: #f1f5f9; border-color: transparent; color: var(--muted); }
+    button.ghost:hover { background: #e2e8f0; color: var(--text); }
+    button.danger { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
+    button.danger:hover { background: #fee2e2; }
+    button.sm { padding: 3px 8px; font-size: 12px; }
+
+    #productList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 1000px) { #productList { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { #productList { grid-template-columns: 1fr; } }
+    .product-card {
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #fafbfc;
+      min-width: 0;
+    }
+    .product-top { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .packing-rows { display: flex; flex-direction: column; gap: 5px; padding: 6px 0 2px 12px; border-left: 2px dashed #e2e8f0; margin-left: 4px; }
+    .packing-row { display: flex; gap: 8px; align-items: center; }
+    .pack-input { width: 88px; font-family: inherit; }
+
+    .error { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; display: none; }
+    .error.show { display: block; }
+    .warn-box { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px; display: none; }
+    .warn-box.show { display: block; }
+
+    #output { display: none; }
+    #output.show { display: block; }
+    .output-header { text-align: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .output-header h1 { font-size: 20px; margin-bottom: 8px; }
+    .stat-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .chip { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+    .chip b { font-size: 14px; }
+    .sec-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; padding-left: 8px; border-left: 3px solid #94a3b8; }
+
+    .table-scroll { overflow-x: auto; margin-bottom: 8px; }
+    .excel-table { font-size: 11px; white-space: nowrap; min-width: max-content; }
+    .excel-table th { text-transform: none; letter-spacing: 0; max-width: 160px; white-space: normal; vertical-align: top; }
+    .excel-table td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    .pack-table { font-size: 12px; width: 100%; border-collapse: collapse; border: 1px solid var(--border); }
+    .pack-table th, .pack-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    .pack-table th { background: #f1f5f9; font-weight: 600; color: var(--muted); }
+    .excel-table td.img-cell { max-width: 96px; white-space: normal; text-align: center; vertical-align: middle; padding: 4px; }
+    .excel-table .prod-img { max-width: 80px; max-height: 80px; object-fit: contain; display: block; margin: 0 auto; }
+
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; margin-bottom: 4px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #f1f5f9; font-weight: 600; color: var(--muted); font-size: 11px; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #f8fafc; }
+    .total-row td { font-weight: 600; background: #f1f5f9 !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-header no-print">
+      <h1>发货清单生成器 <span style="font-size:12px;font-weight:500;color:var(--primary);">装箱表在线版</span></h1>
+      <p>浏览器内上传 Pack List 装箱表并生成清单，数据不上传服务器；请先加载 data.xlsx 产品数据表</p>
+      <div class="data-toolbar">
+        <div id="dataStatus" class="data-status warn">数据表：加载中…</div>
+        <button class="ghost sm" id="btnLoadExcel">选择 / 更换 data.xlsx</button>
+      </div>
+      <div class="drop-zone" id="dropZone">将 <b>data.xlsx</b> 拖拽到此处，或点击选择文件</div>
+      <input type="file" id="excelFile" accept=".xlsx,.xls" hidden />
+    </header>
+
+    <section class="panel no-print">
+      <div class="panel-title">装箱表导入</div>
+      <p class="hint" style="margin-bottom:8px;">支持亚马逊 <b>Pack List</b> 装箱表（.xlsx）：读取「装箱清单」至「合计」之间的 SKU 与各箱数量，并自动识别每箱重量、长宽高</p>
+      <div class="drop-zone" id="packDropZone" style="margin-top:0;">
+        点击或拖拽 <b>装箱表</b> 到此处
+        <div class="file-name" id="packFileName"></div>
+      </div>
+      <input type="file" id="packFileInput" accept=".xlsx,.xls,.csv" hidden />
+      <div id="packPreview" style="display:none;margin-top:10px;">
+        <div class="sec-title" style="margin-top:0;">已导入装箱</div>
+        <div class="table-scroll" id="packPreviewWrap"></div>
+      </div>
+    </section>
+
+    <section class="panel no-print">
+      <div class="panel-title">单号信息</div>
+      <div class="row">
+        <div class="inline-field">
+          <label for="poNumber">PO Number*（Reference ID）</label>
+          <input type="text" id="poNumber" class="ref-input" placeholder="本批共用" />
+        </div>
+        <div class="inline-field">
+          <label for="fbaId">物品FBA ID</label>
+          <input type="text" id="fbaId" class="ref-input" placeholder="本批共用" />
+        </div>
+      </div>
+      <p class="hint">生成清单时写入每一行</p>
+    </section>
+
+    <section class="panel no-print">
+      <div class="error" id="errorMsg"></div>
+      <div class="row">
+        <button class="primary" id="btnGenerate">生成清单</button>
+        <button class="primary" id="btnDownload" style="display:none;">下载清单</button>
+      </div>
+    </section>
+
+    <section class="panel" id="output">
+      <div class="output-header">
+        <h1>发货清单</h1>
+        <div id="summaryMeta" class="stat-chips"></div>
+      </div>
+      <div class="warn-box" id="unmatchedWarn"></div>
+      <div class="sec-title">发货数据表</div>
+      <div class="table-scroll" id="excelTableWrap"></div>
+      <div class="sec-title">箱重一览</div>
+      <div id="boxWeightTable"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script>
+(function () {
+  'use strict';
+
+  const BOX_DIM_DEFAULT = { length: 50, width: 40, height: 42 };
+  const IS_ONLINE = location.protocol === 'http:' || location.protocol === 'https:';
+
+  let boxCount = 0;
+  let excelDb = null;
+  let excelFileName = '';
+  let lastManifest = null;
+  let importedProducts = [];
+  let importedBoxMeta = { weightUnit: 'kg', boxes: {}, maxBox: 0 };
+  let packFileName = '';
+
+  // ── 工具函数 ──
+  const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+  const showError = m => { const e = document.getElementById('errorMsg'); e.textContent = m; e.classList.add('show'); };
+  const hideError = () => document.getElementById('errorMsg').classList.remove('show');
+  const boxDimValue = (val, key) => (val !== '' && val != null) ? val : BOX_DIM_DEFAULT[key];
+  const findCol = (headers, ...keys) => headers.findIndex(h => keys.every(k => h.includes(k)));
+  const findColBoxNum = headers => headers.findIndex(h => /^箱数/.test(String(h).trim()));
+  const isImageUrl = str => /^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(str) || /^data:image\//i.test(str);
+
+  function setDataStatus(text, type) {
+    const el = document.getElementById('dataStatus');
+    el.textContent = text;
+    el.className = 'data-status ' + (type || 'warn');
+  }
+
+  function resetOutputAfterExcelChange() {
+    lastManifest = null;
+    const out = document.getElementById('output');
+    if (out.classList.contains('show')) {
+      out.classList.remove('show');
+      showError('数据表已更换，请重新生成清单');
+    }
+  }
+
+  async function loadExcelFromBuffer(buffer, fileName) {
+    const hadData = !!excelDb;
+    await parseXlsxBuffer(buffer);
+    excelFileName = fileName || 'data.xlsx';
+    setDataStatus(`数据表：${excelFileName}（${excelDb.rows.length} 条产品）`, 'ok');
+    hideError();
+    if (hadData) resetOutputAfterExcelChange();
+  }
+
+  // ── 读取 data.xlsx ──
+  async function extractRowImages(buffer) {
+    if (typeof JSZip === 'undefined') return new Map();
+    const zip = await JSZip.loadAsync(buffer);
+    const drawingFile = zip.file('xl/drawings/drawing1.xml');
+    const relsFile = zip.file('xl/drawings/_rels/drawing1.xml.rels');
+    if (!drawingFile || !relsFile) return new Map();
+
+    const relDoc = new DOMParser().parseFromString(await relsFile.async('text'), 'application/xml');
+    const relMap = {};
+    relDoc.querySelectorAll('Relationship').forEach(rel => {
+      const id = rel.getAttribute('Id');
+      const target = rel.getAttribute('Target');
+      if (id && target) relMap[id] = target.replace(/^\.\.\//, 'xl/');
+    });
+
+    const drawDoc = new DOMParser().parseFromString(await drawingFile.async('text'), 'application/xml');
+    const NS_XDR = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+    const NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+    const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const imageMap = new Map();
+
+    for (const tag of ['oneCellAnchor', 'twoCellAnchor']) {
+      for (const anchor of drawDoc.getElementsByTagNameNS(NS_XDR, tag)) {
+        const from = anchor.getElementsByTagNameNS(NS_XDR, 'from')[0];
+        if (!from) continue;
+        const rowEl = from.getElementsByTagNameNS(NS_XDR, 'row')[0];
+        const colEl = from.getElementsByTagNameNS(NS_XDR, 'col')[0];
+        if (!rowEl) continue;
+        const row = +rowEl.textContent;
+        const col = colEl ? +colEl.textContent : -1;
+        const blip = anchor.getElementsByTagNameNS(NS_A, 'blip')[0];
+        if (!blip) continue;
+        const path = relMap[blip.getAttributeNS(NS_R, 'embed')];
+        const imgFile = path ? zip.file(path) : null;
+        if (!imgFile) continue;
+        const base64 = await imgFile.async('base64');
+        const ext = path.split('.').pop().toLowerCase();
+        const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' }[ext] || 'image/png';
+        const dataUrl = `data:${mime};base64,${base64}`;
+        imageMap.set(`${row},${col}`, dataUrl);
+        imageMap.set(row, dataUrl);
+      }
+    }
+    return imageMap;
+  }
+
+  async function parseXlsxBuffer(buffer) {
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+    const row0 = (aoa[0] || []).map(c => String(c).replace(/\s+/g, ' ').trim());
+    const row1 = (aoa[1] || []).map(c => String(c).replace(/\s+/g, ' ').trim());
+    const row1IsSub = row1.some((c, i) => c && !row0[i] && /箱数|Reference|FBA|销售链接/.test(c));
+
+    let headers, dataStart;
+    if (row1IsSub) {
+      const maxLen = Math.max(row0.length, row1.length);
+      headers = Array.from({ length: maxLen }, (_, i) => {
+        const a = row0[i] || '', b = row1[i] || '';
+        return a && b ? `${a} ${b}` : (a || b);
+      });
+      dataStart = 2;
+    } else {
+      headers = row0;
+      dataStart = 1;
+    }
+
+    const modelCol = findCol(headers, '产品型号');
+    if (modelCol < 0) throw new Error('数据表中未找到「产品型号」列');
+
+    const modelMap = new Map();
+    const modelSourceRow = new Map();
+    const rows = [];
+    for (let r = dataStart; r < aoa.length; r++) {
+      const raw = aoa[r];
+      if (!raw || raw.every(c => c === '' || c == null)) continue;
+      const model = String(raw[modelCol] || '').trim();
+      if (!model) continue;
+      const key = model.toUpperCase();
+      if (!modelMap.has(key)) {
+        modelMap.set(key, raw);
+        modelSourceRow.set(key, r);
+      }
+      rows.push(raw);
+    }
+
+    const colImg = findCol(headers, '产品图片');
+    excelDb = {
+      headers, modelCol, modelMap, modelSourceRow,
+      rowImages: await extractRowImages(buffer),
+      rows,
+      colBox: findCol(headers, '货箱编号'),
+      colBoxNum: findColBoxNum(headers),
+      colQty: findCol(headers, '申报数量'),
+      colWeight: findCol(headers, '货箱重量'),
+      colLen: findCol(headers, '货箱长度'),
+      colWid: findCol(headers, '货箱宽度'),
+      colHgt: findCol(headers, '货箱高度'),
+      colImg,
+      colPo: findCol(headers, 'PO Number') >= 0 ? findCol(headers, 'PO Number') : findCol(headers, 'Reference ID'),
+      colFba: findCol(headers, 'FBA ID'),
+    };
+  }
+
+  async function handleExcelFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        await loadExcelFromBuffer(ev.target.result, file.name);
+      } catch (err) {
+        setDataStatus('数据表解析失败', 'err');
+        showError(err.message || '数据表格式错误');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function initExcel() {
+    if (!IS_ONLINE) {
+      setDataStatus('本地文件模式：请选择或拖入 data.xlsx', 'warn');
+      return;
+    }
+    try {
+      const res = await fetch('data.xlsx', { cache: 'no-store' });
+      if (!res.ok) throw new Error();
+      await loadExcelFromBuffer(await res.arrayBuffer(), 'data.xlsx（服务器默认）');
+    } catch {
+      setDataStatus('未找到服务器默认数据表，请上传 data.xlsx', 'warn');
+    }
+  }
+
+  const excelFileInput = document.getElementById('excelFile');
+  const dropZone = document.getElementById('dropZone');
+
+  document.getElementById('btnLoadExcel').onclick = () => excelFileInput.click();
+  dropZone.onclick = () => excelFileInput.click();
+  excelFileInput.onchange = e => {
+    handleExcelFile(e.target.files[0]);
+    e.target.value = '';
+  };
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const file = [...(e.dataTransfer?.files || [])].find(f => /\.xlsx?$/i.test(f.name));
+    if (!file) return showError('请拖入 .xlsx 或 .xls 文件');
+    hideError();
+    handleExcelFile(file);
+  });
+
+  // ── 装箱表导入 ──
+  function normHeader(cell) {
+    return String(cell ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  function parseCellNum(val, allowDecimal) {
+    if (val === '' || val == null) return null;
+    const s = String(val).trim();
+    if (!s) return null;
+    const n = allowDecimal ? parseFloat(s) : parseInt(s, 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function rowHasText(row, text) {
+    return (row || []).some(c => normHeader(c) === text || normHeader(c).includes(text));
+  }
+
+  function findPackListSheet(wb) {
+    const name = wb.SheetNames.find(n => /pack\s*list/i.test(n));
+    return wb.Sheets[name || wb.SheetNames[0]];
+  }
+
+  function parsePackListSheet(aoa) {
+    let titleRow = -1;
+    for (let r = 0; r < aoa.length; r++) {
+      if (rowHasText(aoa[r], '装箱清单')) { titleRow = r; break; }
+    }
+    if (titleRow < 0) throw new Error('未找到「装箱清单」行');
+
+    const headerRow = titleRow + 1;
+    const headers = (aoa[headerRow] || []).map(normHeader);
+    const skuCol = headers.findIndex(h => h === 'SKU' || h.includes('产品型号'));
+    const mskuCol = headers.findIndex(h => h === 'MSKU');
+    const skuIndex = skuCol >= 0 ? skuCol : mskuCol;
+    if (skuIndex < 0) throw new Error('未找到 SKU / MSKU 列');
+
+    const boxCols = [];
+    headers.forEach((h, ci) => {
+      const m = h.match(/^第\s*(\d+)\s*箱$/);
+      if (m) boxCols.push({ col: ci, box: parseInt(m[1], 10) });
+    });
+    if (!boxCols.length) throw new Error('未找到箱号列（第1箱、第2箱…）');
+
+    const map = new Map();
+    let totalRow = -1;
+    for (let r = headerRow + 1; r < aoa.length; r++) {
+      const raw = aoa[r];
+      if (!raw || raw.every(c => c === '' || c == null)) continue;
+      if (rowHasText(raw, '合计')) { totalRow = r; break; }
+
+      const sku = normHeader(raw[skuIndex]);
+      if (!sku || /^(序号|MSKU|SKU|FNSKU)$/i.test(sku)) continue;
+
+      const packings = [];
+      for (const { col, box } of boxCols) {
+        const qty = parseCellNum(raw[col], false);
+        if (qty > 0) packings.push({ box, qty });
+      }
+      if (!packings.length) continue;
+
+      const key = sku.toUpperCase();
+      if (!map.has(key)) map.set(key, { name: sku, packings: [] });
+      const entry = map.get(key);
+      for (const pk of packings) {
+        if (entry.packings.some(x => x.box === pk.box)) {
+          throw new Error(`「${sku}」箱号 ${pk.box} 在装箱表中重复`);
+        }
+        entry.packings.push(pk);
+      }
+    }
+    if (totalRow < 0) throw new Error('未找到「合计」行');
+    if (!map.size) throw new Error('装箱清单中没有有效产品数据');
+
+    const maxBox = Math.max(...boxCols.map(b => b.box));
+    const boxes = {};
+    let weightUnit = 'kg';
+
+    for (let r = totalRow + 1; r < aoa.length; r++) {
+      const raw = aoa[r];
+      if (!raw || raw.every(c => c === '' || c == null)) continue;
+      const label = (raw || []).map(normHeader).join(' ').toLowerCase();
+      if (!label.trim()) continue;
+
+      let field = null;
+      if (/weight\s*of\s*box/.test(label)) {
+        field = 'weight';
+        if (/\blb\b/.test(label)) weightUnit = 'lb';
+        else if (/\bkg\b/.test(label)) weightUnit = 'kg';
+      } else if (/box\s*length/.test(label)) field = 'length';
+      else if (/box\s*width/.test(label)) field = 'width';
+      else if (/box\s*height/.test(label)) field = 'height';
+      if (!field) continue;
+
+      for (const { col, box } of boxCols) {
+        const v = parseCellNum(raw[col], field === 'weight');
+        if (v == null) continue;
+        if (!boxes[box]) boxes[box] = {};
+        boxes[box][field] = v;
+      }
+    }
+
+    return {
+      products: [...map.values()],
+      maxBox,
+      boxMeta: { weightUnit, boxes },
+    };
+  }
+
+  function findPackingCols(headers) {
+    const sku = headers.findIndex(h => h.includes('产品型号') || h === 'SKU' || h.includes('商品型号'));
+    const box = headers.findIndex(h => h.includes('货箱编号') || h === '箱号' || /^箱号/.test(h));
+    const qty = headers.findIndex(h => h.includes('申报数量') || (h.includes('数量') && !h.includes('搜索')));
+    if (sku < 0 || box < 0 || qty < 0) {
+      throw new Error('装箱表需包含：产品型号、箱号（货箱编号）、数量（申报数量）');
+    }
+    return { sku, box, qty };
+  }
+
+  function parseSimplePackingSheet(aoa) {
+    let headerRow = -1;
+    let cols = null;
+    for (let r = 0; r < Math.min(8, aoa.length); r++) {
+      const headers = (aoa[r] || []).map(normHeader);
+      try {
+        cols = findPackingCols(headers);
+        headerRow = r;
+        break;
+      } catch { /* 继续找 */ }
+    }
+    if (headerRow < 0 || !cols) throw new Error('未找到装箱表所需列：产品型号、箱号、数量');
+
+    const map = new Map();
+    let maxBox = 0;
+    for (let r = headerRow + 1; r < aoa.length; r++) {
+      const raw = aoa[r];
+      if (!raw || raw.every(c => c === '' || c == null)) continue;
+      const sku = String(raw[cols.sku] ?? '').trim();
+      const box = parseInt(String(raw[cols.box] ?? '').replace(/[^\d]/g, ''), 10);
+      const qty = parseInt(String(raw[cols.qty] ?? '').replace(/[^\d]/g, ''), 10);
+      if (!sku || !box || !qty) continue;
+      maxBox = Math.max(maxBox, box);
+      const key = sku.toUpperCase();
+      if (!map.has(key)) map.set(key, { name: sku, packings: [] });
+      map.get(key).packings.push({ box, qty });
+    }
+    if (!map.size) throw new Error('装箱表中没有有效数据行');
+
+    const products = [...map.values()];
+    products.forEach(p => {
+      const used = new Set();
+      for (const pk of p.packings) {
+        if (used.has(pk.box)) throw new Error(`「${p.name}」箱号 ${pk.box} 在装箱表中重复`);
+        used.add(pk.box);
+      }
+    });
+
+    return { products, maxBox, boxMeta: null };
+  }
+
+  function parsePackingFile(buffer, fileName) {
+    const isCsv = /\.csv$/i.test(fileName);
+    const wb = isCsv
+      ? XLSX.read(new TextDecoder('utf-8').decode(buffer), { type: 'string' })
+      : XLSX.read(buffer, { type: 'array' });
+    const sheet = isCsv ? wb.Sheets[wb.SheetNames[0]] : findPackListSheet(wb);
+    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    if (!aoa.length) throw new Error('装箱表为空');
+
+    const hasPackList = aoa.some(row => rowHasText(row, '装箱清单'));
+    if (hasPackList) return parsePackListSheet(aoa);
+    return parseSimplePackingSheet(aoa);
+  }
+
+  function buildBoxesList() {
+    const { weightUnit, boxes, maxBox } = importedBoxMeta;
+    boxCount = maxBox;
+    const list = [];
+    for (let no = 1; no <= maxBox; no++) {
+      const b = boxes[no] || {};
+      list.push({
+        no,
+        weight: b.weight ?? 0,
+        length: b.length ?? BOX_DIM_DEFAULT.length,
+        width: b.width ?? BOX_DIM_DEFAULT.width,
+        height: b.height ?? BOX_DIM_DEFAULT.height,
+      });
+    }
+    return { unit: weightUnit, boxes: list };
+  }
+
+  function renderPackPreview() {
+    const wrap = document.getElementById('packPreviewWrap');
+    const preview = document.getElementById('packPreview');
+    if (!importedProducts.length) {
+      preview.style.display = 'none';
+      return;
+    }
+    let html = '<table class="pack-table"><thead><tr><th>产品型号</th><th>箱号</th><th>数量</th></tr></thead><tbody>';
+    importedProducts.forEach(p => {
+      p.packings.forEach(pk => {
+        html += `<tr><td>${esc(p.name)}</td><td>${pk.box}</td><td>${pk.qty}</td></tr>`;
+      });
+    });
+    wrap.innerHTML = html + '</tbody></table>';
+    if (importedBoxMeta.maxBox > 0) {
+      const unit = importedBoxMeta.weightUnit;
+      let boxHtml = '<div class="sec-title">各箱信息</div><table class="pack-table"><thead><tr><th>箱号</th><th>重量</th><th>长</th><th>宽</th><th>高</th></tr></thead><tbody>';
+      for (let no = 1; no <= importedBoxMeta.maxBox; no++) {
+        const b = importedBoxMeta.boxes[no] || {};
+        boxHtml += `<tr><td>${no}箱</td><td>${b.weight ?? '-'} ${unit}</td><td>${b.length ?? BOX_DIM_DEFAULT.length} cm</td><td>${b.width ?? BOX_DIM_DEFAULT.width} cm</td><td>${b.height ?? BOX_DIM_DEFAULT.height} cm</td></tr>`;
+      }
+      wrap.innerHTML += boxHtml + '</tbody></table>';
+    }
+    preview.style.display = 'block';
+  }
+
+  function applyPackingImport(products, maxBox, boxMeta) {
+    importedProducts = products;
+    importedBoxMeta = {
+      weightUnit: boxMeta?.weightUnit || 'kg',
+      boxes: boxMeta?.boxes || {},
+      maxBox: maxBox || 0,
+    };
+    renderPackPreview();
+    hideError();
+  }
+
+  function handlePackFile(file) {
+    if (!file) return;
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) return showError('请上传 .xlsx、.xls 或 .csv 装箱表');
+    packFileName = file.name;
+    document.getElementById('packFileName').textContent = `已选择：${file.name}`;
+    const isCsv = /\.csv$/i.test(file.name);
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const buffer = isCsv
+          ? new TextEncoder().encode(e.target.result).buffer
+          : e.target.result;
+        const { products, maxBox, boxMeta } = parsePackingFile(buffer, file.name);
+        applyPackingImport(products, maxBox, boxMeta);
+      } catch (err) {
+        importedProducts = [];
+        importedBoxMeta = { weightUnit: 'kg', boxes: {}, maxBox: 0 };
+        renderPackPreview();
+        showError(err.message || '装箱表解析失败');
+      }
+    };
+    if (isCsv) reader.readAsText(file, 'UTF-8');
+    else reader.readAsArrayBuffer(file);
+  }
+
+  const packDropZone = document.getElementById('packDropZone');
+  const packFileInput = document.getElementById('packFileInput');
+  packDropZone.onclick = () => packFileInput.click();
+  packFileInput.onchange = e => { handlePackFile(e.target.files[0]); e.target.value = ''; };
+  packDropZone.addEventListener('dragover', e => { e.preventDefault(); packDropZone.classList.add('dragover'); });
+  packDropZone.addEventListener('dragleave', () => packDropZone.classList.remove('dragover'));
+  packDropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    packDropZone.classList.remove('dragover');
+    handlePackFile(e.dataTransfer.files[0]);
+  });
+
+  // ── 收集与校验 ──
+  function collectData() {
+    const { unit, boxes } = buildBoxesList();
+    return {
+      unit,
+      boxes,
+      products: importedProducts.map(p => ({ name: p.name, packings: [...p.packings] })),
+      poNumber: document.getElementById('poNumber').value.trim(),
+      fbaId: document.getElementById('fbaId').value.trim(),
+    };
+  }
+
+  function validate(data) {
+    if (!excelDb) return '请先加载 data.xlsx 数据表';
+    if (!importedProducts.length) return '请先上传装箱表';
+    if (!data.boxes.length) return '装箱表中未识别到箱号';
+    for (const p of importedProducts) {
+      if (!p.packings.length) return `「${p.name}」无装箱记录`;
+      const used = new Set();
+      for (const pk of p.packings) {
+        if (!pk.box || pk.box > data.boxes.length) return `「${p.name}」箱号 ${pk.box} 无效（当前箱数 ${data.boxes.length}）`;
+        if (!pk.qty || pk.qty < 1) return `「${p.name}」数量须大于 0`;
+        if (used.has(pk.box)) return `「${p.name}」箱号 ${pk.box} 重复`;
+        used.add(pk.box);
+      }
+    }
+    return null;
+  }
+
+  // ── 生成清单 ──
+  function getRowImage(sourceRow) {
+    if (sourceRow == null) return '';
+    const { rowImages, colImg } = excelDb;
+    if (colImg >= 0 && rowImages.has(`${sourceRow},${colImg}`)) return rowImages.get(`${sourceRow},${colImg}`);
+    return rowImages.get(sourceRow) || '';
+  }
+
+  function buildExcelRows(data) {
+    const { unit, boxes, products, poNumber, fbaId } = data;
+    const { headers, modelMap, modelSourceRow, colBox, colBoxNum, colQty, colWeight, colLen, colWid, colHgt, colPo, colFba } = excelDb;
+    const boxMap = Object.fromEntries(boxes.map(b => [b.no, b]));
+    const outputRows = [];
+    const unmatched = [];
+
+    for (const product of products) {
+      const key = product.name.trim().toUpperCase();
+      const template = modelMap.get(key);
+      if (!template) { unmatched.push(product.name); continue; }
+
+      for (const pk of product.packings) {
+        const row = [...template];
+        while (row.length < headers.length) row.push('');
+        const boxInfo = boxMap[pk.box] || {};
+        if (colBox >= 0) row[colBox] = pk.box;
+        if (colBoxNum >= 0) row[colBoxNum] = pk.box;
+        if (colQty >= 0) row[colQty] = pk.qty;
+        if (colWeight >= 0) {
+          let w = boxInfo.weight || 0;
+          if (unit === 'lb') w = +(w * 0.453592).toFixed(2);
+          row[colWeight] = w;
+        }
+        if (colLen >= 0) row[colLen] = boxDimValue(boxInfo.length, 'length');
+        if (colWid >= 0) row[colWid] = boxDimValue(boxInfo.width, 'width');
+        if (colHgt >= 0) row[colHgt] = boxDimValue(boxInfo.height, 'height');
+        if (colPo >= 0 && poNumber) row[colPo] = poNumber;
+        if (colFba >= 0 && fbaId) row[colFba] = fbaId;
+        outputRows.push({ cells: row, image: getRowImage(modelSourceRow.get(key)) });
+      }
+    }
+
+    if (colBox >= 0) outputRows.sort((a, b) => (+a.cells[colBox] || 0) - (+b.cells[colBox] || 0));
+    return { outputRows, unmatched };
+  }
+
+  function getVisibleCols(outputRows) {
+    const { headers, colImg } = excelDb;
+    return headers.map((_, i) => i).filter(i => {
+      if (headers[i]) return true;
+      return outputRows.some(r => (i === colImg && r.image) || (r.cells[i] !== '' && r.cells[i] != null));
+    });
+  }
+
+  function renderExcelTable(outputRows) {
+    const { headers, colImg } = excelDb;
+    const visibleCols = getVisibleCols(outputRows);
+    lastManifest = { outputRows, visibleCols };
+
+    let html = '<table class="excel-table"><thead><tr>';
+    visibleCols.forEach(i => { html += `<th>${esc(headers[i] || `列${i + 1}`)}</th>`; });
+    html += '</tr></thead><tbody>';
+    outputRows.forEach(rowObj => {
+      html += '<tr>';
+      visibleCols.forEach(i => {
+        if (i === colImg) {
+          const src = rowObj.image || (isImageUrl(String(rowObj.cells[i] || '')) ? rowObj.cells[i] : '');
+          html += src
+            ? `<td class="img-cell"><img class="prod-img" src="${src}" alt="产品图" loading="lazy" /></td>`
+            : '<td class="img-cell"></td>';
+          return;
+        }
+        const v = rowObj.cells[i];
+        html += `<td title="${esc(String(v ?? ''))}">${esc(v === '' || v == null ? '' : String(v))}</td>`;
+      });
+      html += '</tr>';
+    });
+    document.getElementById('excelTableWrap').innerHTML = html + '</tbody></table>';
+  }
+
+  function renderManifest(data) {
+    const { unit, boxes, products } = data;
+    const totalWeight = boxes.reduce((s, b) => s + b.weight, 0);
+    const totalQty = products.reduce((s, p) => s + p.packings.reduce((ps, pk) => ps + pk.qty, 0), 0);
+
+    document.getElementById('summaryMeta').innerHTML = `
+      <span class="chip">共 <b>${boxes.length}</b> 箱</span>
+      <span class="chip">总重 <b>${totalWeight.toFixed(2)}</b> ${unit}</span>
+      <span class="chip">共 <b>${totalQty}</b> 件</span>
+      <span class="chip"><b>${products.length}</b> 种商品</span>`;
+
+    const { outputRows, unmatched } = buildExcelRows(data);
+    const warnEl = document.getElementById('unmatchedWarn');
+    if (unmatched.length) {
+      warnEl.textContent = `以下 SKU 未匹配到产品型号：${unmatched.join('、')}`;
+      warnEl.classList.add('show');
+    } else {
+      warnEl.classList.remove('show');
+    }
+
+    if (!outputRows.length) {
+      lastManifest = null;
+      document.getElementById('excelTableWrap').innerHTML = '<p style="color:#94a3b8;padding:12px;">没有匹配到数据，请检查 SKU 是否与数据表「产品型号」一致。</p>';
+    } else {
+      renderExcelTable(outputRows);
+    }
+
+    const byBox = {};
+    boxes.forEach(b => { byBox[b.no] = { weight: b.weight, items: [] }; });
+    products.forEach(p => p.packings.forEach(pk => byBox[pk.box].items.push({ qty: pk.qty })));
+    let wtHtml = '<table><thead><tr><th>箱号</th><th>毛重</th><th>件数</th></tr></thead><tbody>';
+    boxes.forEach(b => {
+      const qty = byBox[b.no].items.reduce((s, it) => s + it.qty, 0);
+      wtHtml += `<tr><td>${b.no}箱</td><td>${b.weight.toFixed(2)} ${unit}</td><td>${qty}</td></tr>`;
+    });
+    wtHtml += `<tr class="total-row"><td>合计</td><td>${totalWeight.toFixed(2)} ${unit}</td><td>${totalQty}</td></tr></tbody></table>`;
+    document.getElementById('boxWeightTable').innerHTML = wtHtml;
+  }
+
+  document.getElementById('btnGenerate').onclick = () => {
+    const data = collectData();
+    const err = validate(data);
+    if (err) return showError(err);
+    hideError();
+    renderManifest(data);
+    document.getElementById('output').classList.add('show');
+    document.getElementById('btnDownload').style.display = 'inline-block';
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // ── 下载 Excel（含图片）──
+  function parseImageForExcel(src) {
+    const m = String(src || '').match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/i);
+    if (!m) return null;
+    let ext = m[1].toLowerCase();
+    if (ext === 'jpg') ext = 'jpeg';
+    return { base64: m[2], extension: ext };
+  }
+
+  async function downloadManifestWithImages() {
+    if (!lastManifest || !excelDb) throw new Error('请先生成清单');
+    if (typeof ExcelJS === 'undefined') throw new Error('ExcelJS 未加载，请检查网络后刷新');
+
+    const { headers, colImg } = excelDb;
+    const { outputRows, visibleCols } = lastManifest;
+    const imgColIdx = visibleCols.indexOf(colImg);
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('发货清单');
+
+    const headerRow = sheet.addRow(visibleCols.map(i => headers[i] || `列${i + 1}`));
+    headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.height = 22;
+    visibleCols.forEach((col, idx) => { sheet.getColumn(idx + 1).width = col === colImg ? 14 : 18; });
+
+    for (let ri = 0; ri < outputRows.length; ri++) {
+      const rowObj = outputRows[ri];
+      const values = visibleCols.map(i => (i === colImg ? '' : (rowObj.cells[i] ?? '')));
+      const excelRow = sheet.addRow(values);
+      excelRow.alignment = { vertical: 'middle', wrapText: true };
+      const imgData = parseImageForExcel(rowObj.image);
+      if (imgColIdx >= 0 && imgData) {
+        excelRow.height = 62;
+        const imageId = workbook.addImage({ base64: imgData.base64, extension: imgData.extension });
+        sheet.addImage(imageId, { tl: { col: imgColIdx + 0.1, row: ri + 1.08 }, ext: { width: 72, height: 72 } });
+      }
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = `发货清单_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  document.getElementById('btnDownload').onclick = async () => {
+    try { await downloadManifestWithImages(); hideError(); }
+    catch (err) { showError(err.message || '下载失败'); }
+  };
+
+  // ── 初始化 ──
+  initExcel();
+})();
+  </script>
+</body>
+</html>
